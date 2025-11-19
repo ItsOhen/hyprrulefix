@@ -169,8 +169,6 @@ def rewrite_file(filename, window_rules, layer_rules, use_named=False):
             ("windowrule", "windowrulev2", "layerrule")
         ) or stripped.startswith("# --- Auto-generated"):
             continue
-        if stripped.startswith("#"):
-            continue
         cleaned.append(line)
     cleaned.append("\n# --- Auto-generated window rules ---\n")
     new_window_text = (generate_named_rules if use_named else generate_anonymous_rules)(
@@ -204,4 +202,3 @@ if __name__ == "__main__":
     print(
         f"\nFile '{filename}' rewritten with merged rules. Backup saved as '{filename}.bak'."
     )
-
