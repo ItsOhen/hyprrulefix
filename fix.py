@@ -120,37 +120,37 @@ def parse_rules(filename):
     return {"windowrules": windowrules_list, "layerrules": layerrules_list}
 
 
+def format_flag(key, val, indent=0, selector=False, named=False):
+    prefix = " " * indent
+    if named:
+        if selector:
+            return f"{prefix}match:{key} = {val}"
+        else:
+            return (
+                f"{prefix}{key} = {val}" if val is not None else f"{prefix}{key} = on"
+            )
+
+    if selector:
+        return f"{prefix}match:{key} {val}"
+    else:
+        return f"{prefix}{key} {val}" if val is not None else f"{prefix}{key} on"
+
+
 def generate_anonymous(rules_dict, rule_type):
     lines = []
     for rule_list in rules_dict[rule_type + "s"]:
-        parts = []
-        for key, val, is_sel in rule_list:
-            if is_sel:
-                if val is not None:
-                    parts.append(f"match:{key} {val}")
-                else:
-                    parts.append(f"match:{key}")
-            else:
-                parts.append(f"{key} {val}" if val is not None else key)
+        parts = [format_flag(k, v, selector=sel) for k, v, sel in rule_list]
         lines.append(f"{rule_type} = " + ", ".join(parts))
     return "\n".join(lines)
 
 
 def generate_named(rules_dict, rule_type):
     blocks = []
-    counter = 1
-    for rule_list in rules_dict[rule_type + "s"]:
-        name = f"{rule_type}-{counter}"
-        counter += 1
+    for idx, rule_list in enumerate(rules_dict[rule_type + "s"], start=1):
+        name = f"{rule_type}-{idx}"
         block = [f"{rule_type} {{", f"  name = {name}"]
-        for key, val, is_sel in rule_list:
-            if is_sel:
-                if val is not None:
-                    block.append(f"  match:{key} = {val}")
-                else:
-                    block.append(f"  match:{key}")
-            else:
-                block.append(f"  {key} = {val}" if val is not None else f"  {key} = 1")
+        for k, v, sel in rule_list:
+            block.append(format_flag(k, v, indent=2, selector=sel, named=True))
         block.append("}")
         blocks.append("\n".join(block))
     return "\n\n".join(blocks)
@@ -208,4 +208,3 @@ if __name__ == "__main__":
 
     rules = parse_rules(filename)
     rewrite_file(filename, rules, use_named)
-
