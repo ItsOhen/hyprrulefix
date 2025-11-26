@@ -4,7 +4,9 @@
     "module": "ES2020",
     "moduleResolution": "node",
     "outDir": "./",
+    "rootDir": "ts",
     "strict": true
   },
-  "include": ["ts/*.ts"]
+  "include": ["ts/**/*.ts"],
+  "exclude": ["node_modules"]
 }
