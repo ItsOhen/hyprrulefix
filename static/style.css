@@ -164,25 +164,32 @@ textarea {
   opacity: 1;
 }
 
-.output-container {
+.outputContainer {
   position: relative;
   width: 100%;
 }
 
-.output-container {
-  position: relative;
-  width: 100%;
+.outputContainer,
+#outputBox,
+#dropOverlay {
+  box-sizing: border-box;
 }
 
 #outputBox {
   width: 100%;
   height: 400px;
-  resize: none;
   padding: 10px;
   font-family: monospace;
   font-size: 14px;
   background-color: #3b4252;
   color: #eceff4;
+  border: none;
+  resize: none;
+  display: block;
+}
+
+#outputBox:focus {
+  outline: none;
   border: none;
 }
 
@@ -198,9 +205,13 @@ textarea {
   align-items: center;
   justify-content: center;
   font-size: 1.2rem;
+  font-weight: bold;
   pointer-events: none;
-  transition:
-    background 0.2s,
-    opacity 0.2s;
   z-index: 10;
+  text-align: center;
+}
+
+#dropOverlay.hidden {
+  opacity: 0;
+  pointer-events: none;
 }

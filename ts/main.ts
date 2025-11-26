@@ -2,31 +2,19 @@ import { generateRules } from "./rules.js";
 
 const outputBox = document.getElementById("outputBox") as HTMLTextAreaElement;
 const fileInput = document.getElementById("fileInput") as HTMLInputElement;
-const loadFileBtn = document.getElementById("loadFile")!;
+const loadBtn = document.getElementById("loadFile")!;
 const saveBtn = document.getElementById("saveFile")!;
 const toggle = document.getElementById("ruleTypeSwitch") as HTMLInputElement;
-const outputOverlay = document.getElementById("dropOverlay")!;
-const outputContainer = outputBox.parentElement!;
+const overlay = document.getElementById("dropOverlay")!;
+const container = outputBox.parentElement!;
 
-const savedType = localStorage.getItem("ruleType");
-if (savedType) {
-  toggle.checked = savedType === "anon";
-}
-
-let savedSource = localStorage.getItem("ruleSource") || "";
+let savedSource = "";
 
 function updateOutput(source: string) {
   savedSource = source;
-  outputOverlay.style.display = "none"; // hide overlay when we have content
   outputBox.value = generateRules(source, !toggle.checked);
   outputBox.disabled = false;
-}
-
-if (savedSource) {
-  updateOutput(savedSource);
-} else {
-  outputBox.value = "";
-  outputBox.disabled = true;
+  overlay.classList.add("hidden");
 }
 
 function loadFile(file: File) {
@@ -41,17 +29,14 @@ function loadFile(file: File) {
 
 toggle.addEventListener("change", () => {
   localStorage.setItem("ruleType", toggle.checked ? "anon" : "named");
-  if (savedSource) {
+  if (savedSource)
     outputBox.value = generateRules(savedSource, !toggle.checked);
-  }
 });
 
-loadFileBtn.addEventListener("click", () => fileInput.click());
-
+loadBtn.addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", (e) => {
   const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
-  loadFile(file);
+  if (file) loadFile(file);
 });
 
 saveBtn.addEventListener("click", () => {
@@ -66,23 +51,20 @@ saveBtn.addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
-// --- Drag & Drop ---
-outputContainer.addEventListener("dragover", (e) => {
+container.addEventListener("dragover", (e) => {
   e.preventDefault();
-  outputOverlay.style.display = "flex";
+  outputBox.classList.add("drag-over");
 });
 
-outputContainer.addEventListener("dragleave", (e) => {
-  // Only hide if leaving the container entirely
-  const related = e.relatedTarget as HTMLElement;
-  if (!related || !outputContainer.contains(related)) {
-    outputOverlay.style.display = savedSource ? "none" : "flex";
-  }
+container.addEventListener("dragleave", () => {
+  outputBox.classList.remove("drag-over");
 });
 
-outputContainer.addEventListener("drop", (e) => {
+container.addEventListener("drop", (e) => {
   e.preventDefault();
+  outputBox.classList.remove("drag-over");
   const file = e.dataTransfer?.files?.[0];
   if (!file) return;
+  const reader = new FileReader();
   loadFile(file);
 });
