@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Rule Converter</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Rule Converter</h1>
+
+    <div class="layout">
+      <div class="pane">
+        <h2>Input</h2>
+        <textarea
+          id="inputBox"
+          placeholder="Paste your window rules here"
+        ></textarea>
+        <button id="loadFile">Load File</button>
+        <input type="file" id="fileInput" style="display: none" />
+      </div>
+
+      <div class="pane">
+        <h2>Output</h2>
+        <textarea id="outputBox" readonly></textarea>
+        <button id="saveFile">Save Output</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="toNamed">Generate Named</button>
+      <button id="toAnon">Generate Anonymous</button>
+    </div>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

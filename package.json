@@ -1,0 +1,28 @@
+{
+  "name": "configfix",
+  "version": "1.0.0",
+  "description": "This is probably not complete. Probably missed some renames or default values, if you find any, let me know.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsc && cp -r static/ ./"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ItsOhen/hyprrules.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/ItsOhen/hyprrules/issues"
+  },
+  "homepage": "https://github.com/ItsOhen/hyprrules#readme",
+  "dependencies": {
+    "typescript": "^5.9.3"
+  }
+}
