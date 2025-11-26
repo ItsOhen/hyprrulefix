@@ -3,6 +3,12 @@
 This is probably not complete.
 Probably missed some renames or default values, if you find any, let me know.
 
+## Note
+
+Now on github.io:
+
+https://itsohen.github.io/hyprrulefix/
+
 ## Usage
 
 `python fix.py <filename> <flag>`
