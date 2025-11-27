@@ -88,7 +88,12 @@ function parsePart(part: string): Item | Item[] {
   const tokens = part.split(/\s+/);
   const rawKey = tokens[0];
   const key = replacementsValues[rawKey.toLowerCase()] ?? rawKey.toLowerCase();
-  const value = tokens.slice(1).join(" ") || defaults[key] || "on";
+  let value;
+  if (key === "size") {
+    value = parseSize(tokens.slice(1));
+  } else {
+    value = tokens.slice(1).join(" ") || defaults[key] || "on";
+  }
   return { key, value, type: "flag", error: false };
 }
 
