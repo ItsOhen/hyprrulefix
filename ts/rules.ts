@@ -53,7 +53,7 @@ function parseSize(tokens: string[]): string {
     .join(" ");
 }
 
-function parsePart(part: string): Item {
+function parsePart(part: string): Item | Item[] {
   part = part.trim();
   if (!part) return { key: "", value: "", type: "flag", error: true };
 
@@ -70,23 +70,26 @@ function parsePart(part: string): Item {
 
     if (Array.isArray(mapping)) {
       const vals = rawVal.split(/\s+/);
-      return {
-        key: mapping[0],
-        value: vals[0] ?? "0",
-        type: "selector",
-        error: false,
-      };
-    } else {
-      return { key: mapping, value: rawVal, type: "selector", error: false };
+      const out: Item[] = [];
+      for (let i = 0; i < mapping.length; i++) {
+        out.push({
+          key: mapping[i],
+          value: vals[i] ?? "0",
+          type: "selector",
+          error: false,
+        });
+      }
+      return out;
     }
-  } else {
-    const tokens = part.split(/\s+/);
-    const rawKey = tokens[0];
-    const key =
-      replacementsValues[rawKey.toLowerCase()] ?? rawKey.toLowerCase();
-    const value = tokens.slice(1).join(" ") || defaults[key] || "on";
-    return { key, value, type: "flag", error: false };
+
+    return { key: mapping, value: rawVal, type: "selector", error: false };
   }
+
+  const tokens = part.split(/\s+/);
+  const rawKey = tokens[0];
+  const key = replacementsValues[rawKey.toLowerCase()] ?? rawKey.toLowerCase();
+  const value = tokens.slice(1).join(" ") || defaults[key] || "on";
+  return { key, value, type: "flag", error: false };
 }
 
 function parseLine(line: string): Rule | null {
@@ -114,17 +117,20 @@ function parseLine(line: string): Rule | null {
     const value = flagTokens.slice(1).join(" ") || defaults[key] || "on";
     items.push({ key, value, type: "flag", error: false });
 
-    for (let i = 1; i < parts.length; i++)
+    for (let i = 1; i < parts.length; i++) {
       items.push({
         key: parts[i],
         value: "on",
         type: "selector",
         error: false,
       });
+    }
   } else {
     for (const part of parts) {
       if (!part) continue;
-      items.push(parsePart(part));
+      const parsed = parsePart(part);
+      if (Array.isArray(parsed)) items.push(...parsed);
+      else items.push(parsed);
     }
   }
 
