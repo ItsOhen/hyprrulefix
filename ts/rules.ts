@@ -43,14 +43,28 @@ const defaults: Record<string, string> = {
   fullscreen_state_client: "0",
 };
 
-function parseSize(tokens: string[]): string {
-  return tokens
-    .map((v, i) => {
-      if (!v.endsWith("%")) return v;
-      const factor = parseFloat(v.slice(0, -1)) / 100;
+function parseSize(tokens: string[]): { mode: string; values: string[] } {
+  let mode = "size"; // default
+  const values = tokens.map((v, i) => {
+    let token = v.trim();
+
+    if (token.startsWith(">")) {
+      mode = "size_min";
+      token = token.slice(1);
+    } else if (token.startsWith("<")) {
+      mode = "size_max";
+      token = token.slice(1);
+    }
+
+    if (token.endsWith("%")) {
+      const factor = parseFloat(token.slice(0, -1)) / 100;
       return i === 0 ? `(monitor_w*${factor})` : `(monitor_h*${factor})`;
-    })
-    .join(" ");
+    }
+
+    return token;
+  });
+
+  return { mode, values };
 }
 
 function parsePart(part: string): Item | Item[] {
@@ -90,10 +104,12 @@ function parsePart(part: string): Item | Item[] {
   const key = replacementsValues[rawKey.toLowerCase()] ?? rawKey.toLowerCase();
   let value;
   if (key === "size") {
-    value = parseSize(tokens.slice(1));
+    const { mode, values } = parseSize(tokens.slice(1));
+    return { key: mode, value: values.join(" "), type: "flag", error: false };
   } else {
     value = tokens.slice(1).join(" ") || defaults[key] || "on";
   }
+
   return { key, value, type: "flag", error: false };
 }
 
