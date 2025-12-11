@@ -26,6 +26,8 @@ const replacementsValues: Record<string, string> = {
   noblur: "no_blur",
   ignorealpha: "ignore_alpha",
   ignorezero: "ignore_alpha",
+  fullscreenstate: "fullscreen_state",
+  dimaround: "dim_around",
 };
 
 const defaults: Record<string, string> = {
