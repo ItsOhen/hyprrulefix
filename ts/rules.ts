@@ -28,6 +28,9 @@ const replacementsValues: Record<string, string> = {
   ignorezero: "ignore_alpha",
   fullscreenstate: "fullscreen_state",
   dimaround: "dim_around",
+  keepaspectratio: "keep_aspect_ratio",
+  nodim: "no_dim",
+  bordercolor: "border_color",
 };
 
 const defaults: Record<string, string> = {
