@@ -31,6 +31,7 @@ const replacementsValues: Record<string, string> = {
   keepaspectratio: "keep_aspect_ratio",
   nodim: "no_dim",
   bordercolor: "border_color",
+  noshadow: "no_shadow",
 };
 
 const defaults: Record<string, string> = {
@@ -72,6 +73,48 @@ function parseSize(tokens: string[]): { mode: string; values: string[] } {
   return { mode, values };
 }
 
+function parseMove(tokens: string[]): { values: string[] } {
+  let cursor = false;
+
+  const args: string[] = [];
+
+  for (const t of tokens) {
+    if (t === "cursor") {
+      cursor = true;
+      continue;
+    }
+    args.push(t);
+  }
+
+  const values = args.map((raw, index) => {
+    const isX = index === 0;
+    const monitor = isX ? "monitor_w" : "monitor_h";
+    const client = isX ? "window_w" : "window_h";
+    const cursorBase = isX ? "cursor_x" : "cursor_y";
+
+    const parts = raw.trim().split("-");
+
+    const transformed = parts.map((part) => {
+      part = part.trim();
+
+      if (part === "w") return client;
+
+      if (part.endsWith("%")) {
+        const factor = parseFloat(part.slice(0, -1)) / 100;
+        return `(${monitor}*${factor})`;
+      }
+
+      return part;
+    });
+
+    const expr = `(${transformed.join("-")})`;
+
+    return cursor ? `(${cursorBase}+${expr})` : expr;
+  });
+
+  return { values };
+}
+
 function parsePart(part: string): Item | Item[] {
   part = part.trim();
   if (!part) return { key: "", value: "", type: "flag", error: true };
@@ -111,6 +154,9 @@ function parsePart(part: string): Item | Item[] {
   if (key === "size") {
     const { mode, values } = parseSize(tokens.slice(1));
     return { key: mode, value: values.join(" "), type: "flag", error: false };
+  } else if (key === "move") {
+    const { values } = parseMove(tokens.slice(1));
+    return { key, value: values.join(" "), type: "flag", error: false };
   } else {
     value = tokens.slice(1).join(" ") || defaults[key] || "on";
   }
