@@ -263,12 +263,6 @@ function mergeRules(rules: Rule[]): Rule[] {
 }
 
 export function generateRules(input: string, named = true): string {
-  input = ReplaceKeys(input, {
-    keys: ["new_window_takes_over_fullscreen", "inherit_fullscreen"],
-    newkey: "new_window_takes_over_fs",
-    block: "misc",
-    default: "1",
-  });
   const lines = input.split("\n");
   const output: string[] = [...lines];
   const rules: { rule: Rule; lineIndex: number }[] = [];
@@ -353,65 +347,4 @@ export function generateRules(input: string, named = true): string {
   });
 
   return output.join("\n");
-}
-
-type BlockRewrite = {
-  keys: string[];
-  newkey: string;
-  block?: string;
-  default?: string;
-};
-
-function ReplaceKeys(
-  text: string,
-  { keys, newkey, block, default: defaultValue = "1" }: BlockRewrite,
-): string {
-  const regex = new RegExp(
-    `^\\s*(?:\\w+\\s*:)?\\s*(${keys.join("|")})\\s*=\\s*(.+?)\\s*$`,
-  );
-
-  const start = block ? new RegExp(`^\\s*${block}\\s*\\{\\s*$`) : null;
-  const end = /^\s*\}\s*$/;
-
-  const lines = text.split("\n");
-  const out: string[] = [];
-
-  let value: string | null = null;
-  let startnum: number | null = null;
-  let endnum: number | null = null;
-  let first: number | null = null;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    if (start?.test(line) && startnum === null) startnum = out.length;
-    else if (startnum !== null && endnum === null && end.test(line))
-      endnum = out.length;
-
-    const m = line.match(regex);
-    if (m) {
-      if (value === null) value = m[2].trim();
-      if (first === null) first = out.length;
-      continue;
-    }
-
-    out.push(line);
-  }
-
-  if (value === null) value = defaultValue;
-
-  const newLine =
-    block && startnum !== null
-      ? `  ${newkey} = ${value}`
-      : `${block}:${newkey} = ${value}`;
-
-  if (block && startnum !== null) {
-    out.splice(endnum ?? startnum + 1, 0, newLine);
-  } else if (first !== null) {
-    out.splice(first, 0, newLine);
-  } else {
-    out.push(newLine);
-  }
-
-  return out.join("\n");
 }
