@@ -51,6 +51,9 @@ const replacementsValues: Record<string, string> = {
   noinitialfocus: "no_initial_focus",
   ignorealpha: "ignore_alpha",
   ignorezero: "ignore_alpha",
+  blurpopups: "blur_popups",
+  abovelock: "above_lock",
+  noscreenshare: "no_screen_share",
 };
 
 const defaults: Record<string, string> = {
