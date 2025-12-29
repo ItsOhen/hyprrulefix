@@ -53,7 +53,6 @@ const replacementsValues: Record<string, string> = {
   ignorezero: "ignore_alpha",
   blurpopups: "blur_popups",
   abovelock: "above_lock",
-  noscreenshare: "no_screen_share",
 };
 
 const defaults: Record<string, string> = {
@@ -145,7 +144,10 @@ function parsePart(part: string): Item | Item[] {
     return { key: part, value: "", type: "variable", error: false };
   }
 
-  const colonIndex = part.indexOf(":");
+  let colonIndex = part.indexOf(":");
+  const firstSpace = part.indexOf(" ");
+  if (firstSpace !== -1 && colonIndex !== -1 && firstSpace < colonIndex)
+    colonIndex = -1;
 
   if (colonIndex !== -1) {
     const rawKey = part.slice(0, colonIndex).trim();
