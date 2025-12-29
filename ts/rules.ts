@@ -269,7 +269,8 @@ function mergeRules(rules: Rule[]): Rule[] {
 
 export function generateRules(input: string, named = true): string {
   const lines = input.split("\n");
-  const output: string[] = [...lines];
+  const output: Array<string | null> = [...lines];
+
   const rules: { rule: Rule; lineIndex: number }[] = [];
 
   lines.forEach((line, idx) => {
@@ -280,11 +281,18 @@ export function generateRules(input: string, named = true): string {
   });
 
   const mergedRules = mergeRules(rules.map((r) => r.rule));
+
+  const itemOrder: Record<Item["type"], number> = {
+    flag: 0,
+    selector: 1,
+    variable: 2,
+  };
+
   const usedSignatures = new Set<string>();
   let windowCounter = 1;
   let layerCounter = 1;
 
-  rules.forEach(({ rule, lineIndex }) => {
+  for (const { rule, lineIndex } of rules) {
     const sig = rule.items
       .filter((i) => i.type === "selector" || i.type === "variable")
       .map((i) => `${i.key}:${i.value}`)
@@ -292,9 +300,10 @@ export function generateRules(input: string, named = true): string {
       .join("|");
 
     if (usedSignatures.has(sig)) {
-      output[lineIndex] = "";
-      return;
+      output[lineIndex] = null;
+      continue;
     }
+
     usedSignatures.add(sig);
 
     const merged = mergedRules.find((r) => {
@@ -306,8 +315,11 @@ export function generateRules(input: string, named = true): string {
       return rSig === sig;
     })!;
 
+    merged.items.sort((a, b) => itemOrder[a.type] - itemOrder[b.type]);
+
     if (named) {
       const block: string[] = [];
+
       block.push(`${merged.type} {`);
       block.push(
         `  name = ${
@@ -317,7 +329,7 @@ export function generateRules(input: string, named = true): string {
         }`,
       );
 
-      merged.items.forEach((item) => {
+      for (const item of merged.items) {
         if (item.type === "variable") {
           block.push(`  match:${item.key}`);
         } else if (item.type === "selector") {
@@ -329,7 +341,7 @@ export function generateRules(input: string, named = true): string {
         } else if (item.type === "flag") {
           block.push(`  ${item.key} = ${item.value}`);
         }
-      });
+      }
 
       block.push("}\n");
       output[lineIndex] = block.join("\n");
@@ -344,12 +356,11 @@ export function generateRules(input: string, named = true): string {
         } else if (item.type === "flag") {
           return `${item.key} ${item.value}`;
         }
-        return "";
       });
 
       output[lineIndex] = `${merged.type} = ${itemsText.join(", ")}`;
     }
-  });
+  }
 
-  return output.join("\n");
+  return output.filter((l): l is string => l !== null).join("\n");
 }
