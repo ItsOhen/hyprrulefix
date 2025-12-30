@@ -104,6 +104,7 @@ function parseMove(tokens: string[]): { values: string[] } {
       cursor = true;
       continue;
     }
+    if (t === "onscreen") continue;
     args.push(t);
   }
 
