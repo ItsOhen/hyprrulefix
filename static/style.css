@@ -186,6 +186,9 @@ textarea {
   border: none;
   resize: none;
   display: block;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 #outputBox:focus {
