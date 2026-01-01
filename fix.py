@@ -1,6 +1,26 @@
 import sys
 import shutil
-from collections import defaultdict
+from typing import List, Dict, Tuple
+from dataclasses import dataclass
+
+ItemType = str
+RuleType = str
+
+NAMED_OUTPUT = False
+
+
+@dataclass
+class Item:
+    key: str
+    value: str
+    type: ItemType
+    error: bool = False
+
+
+@dataclass
+class Rule:
+    type: RuleType
+    items: List[Item]
 
 
 replacements_keys = {
@@ -11,20 +31,46 @@ replacements_keys = {
     "fullscreenstate": ("fullscreen_state_internal", "fullscreen_state_client"),
     "onworkspace": "workspace",
     "xdgTag": "xdg_tag",
+    "noinitialfocus": "no_initial_focus",
 }
 
 replacements_values = {
     "bordersize": "border_size",
-    "idleinhibit": "idle_inhibit",
-    "noanim": "no_anim",
+    "bordercolor": "border_color",
+    "roundingpower": "rounding_power",
     "noborder": "border_size",
-    "suppressevent": "suppress_event",
-    "nofocus": "no_focus",
-    "maxsize": "max_size",
-    "noinitialfocus": "no_initial_focus",
+    "noanim": "no_anim",
     "noblur": "no_blur",
+    "nodim": "no_dim",
+    "noshadow": "no_shadow",
+    "norounding": "no_rounding",
+    "nofocus": "no_focus",
+    "nofollowmouse": "no_follow_mouse",
+    "allowsinput": "allows_input",
+    "focusonactivate": "focus_on_activate",
+    "fullscreenstate": "fullscreen_state",
+    "maxsize": "max_size",
+    "minsize": "min_size",
+    "nomaxsize": "no_max_size",
+    "keepaspectratio": "keep_aspect_ratio",
+    "idleinhibit": "idle_inhibit",
+    "persistentsize": "persistent_size",
+    "stayfocused": "stay_focused",
+    "dimaround": "dim_around",
+    "noclosefor": "no_close_for",
+    "suppressevent": "suppress_event",
+    "forcergbx": "force_rgbx",
+    "syncfullscreen": "sync_fullscreen",
+    "renderunfocused": "render_unfocused",
+    "scrollmouse": "scroll_mouse",
+    "scrolltouchpad": "scroll_touchpad",
+    "noshortcutsinhibit": "no_shortcuts_inhibit",
+    "noscreenshare": "no_screen_share",
+    "novrr": "no_vrr",
     "ignorealpha": "ignore_alpha",
     "ignorezero": "ignore_alpha",
+    "blurpopups": "blur_popups",
+    "abovelock": "above_lock",
 }
 
 defaults = {
@@ -43,168 +89,277 @@ defaults = {
 }
 
 
-def parse_size(value: str) -> str:
-    if not value:
-        return value
+def parse_size(tokens: List[str]) -> Tuple[str, str]:
+    mode = "size"
+    values = []
 
-    parts = value.split()
-    result = []
+    for i, tok in enumerate(tokens):
+        if tok.startswith(">"):
+            mode = "size_min"
+            tok = tok[1:]
+        elif tok.startswith("<"):
+            mode = "size_max"
+            tok = tok[1:]
 
-    for i, p in enumerate(parts):
-        p = p.strip()
-        if p.endswith("%"):
-            factor = float(p.rstrip("%")) / 100
-            expr = f"(monitor_w*{factor})" if i == 0 else f"(monitor_h*{factor})"
-            result.append(expr)
+        if tok.endswith("%"):
+            factor = float(tok[:-1]) / 100
+            values.append(
+                f"(monitor_w*{factor})" if i == 0 else f"(monitor_h*{factor})"
+            )
         else:
-            result.append(p)
+            values.append(tok)
 
-    return " ".join(result)
+    return mode, " ".join(values)
 
 
-def parse_rules(filename):
-    rules = {"windowrules": defaultdict(dict), "layerrules": defaultdict(dict)}
+def parse_move(tokens: List[str]) -> str:
+    cursor = False
+    onscreen = False
+    args: List[str] = []
 
-    with open(filename) as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith("#"):
+    for t in tokens:
+        if t == "cursor":
+            cursor = True
+            continue
+        if t == "onscreen":
+            onscreen = True
+            continue
+        args.append(t)
+
+    values: List[str] = []
+
+    for index, raw in enumerate(args):
+        is_x = index == 0
+        monitor = "monitor_w" if is_x else "monitor_h"
+        client = "client_w" if is_x else "client_h"
+        cursor_base = "cursor_x" if is_x else "cursor_y"
+
+        parts = raw.strip().split("-")
+        transformed: List[str] = []
+
+        for part in parts:
+            part = part.strip()
+
+            if part == "w":
+                transformed.append(client)
                 continue
 
-            cmd, rhs = line.split("=", 1)
-            parts = [p.strip() for p in rhs.split(",")]
+            if part.endswith("%"):
+                factor = float(part[:-1]) / 100
+                transformed.append(f"{monitor}*{factor}")
+                continue
 
-            if cmd.startswith(("windowrule", "windowrulev2")):
-                selectors = []
-                flags = {}
+            transformed.append(part)
 
-                for part in parts:
-                    if ":" in part:
-                        k, v = part.split(":", 1)
-                        k = replacements_keys.get(k.strip(), k.strip())
-                        if isinstance(k, tuple):
-                            vals = (v.strip() if v else "0 0").split()
-                            selectors.append((k[0], vals[0]))
-                            selectors.append((k[1], vals[1] if len(vals) > 1 else "0"))
-                        else:
-                            selectors.append((k, v.strip() if v else None))
-                    else:
-                        k, *v = part.split(None, 1)
-                        fk = replacements_values.get(k.strip(), k.strip())
-                        val = v[0] if v else defaults.get(fk)
-                        if fk == "size" and val:
-                            val = parse_size(val)
-                        flags[fk] = val
+        expr = "-".join(transformed)
 
-                key = tuple(sorted(selectors))
-                rules["windowrules"][key].update(flags)
+        if onscreen:
+            sep = "," if NAMED_OUTPUT else r"\,"
+            expr = f"min(max({expr}{sep}0){sep}{monitor}-{client})"
 
-            elif cmd.startswith("layerrule"):
-                k, *v = parts[0].split(None, 1)
-                fk = replacements_values.get(k.strip(), k.strip())
-                val = v[0] if v else defaults.get(fk)
-                namespace = parts[1]
+        if cursor:
+            expr = f"{cursor_base}+({expr})"
 
-                rules["layerrules"][namespace][fk] = val
+        values.append(f"({expr})")
 
-    windowrules_list = [
-        [(k, v, True) for k, v in selectors]
-        + [(fk, val, False) for fk, val in flags.items()]
-        for selectors, flags in rules["windowrules"].items()
-    ]
-
-    layerrules_list = [
-        [(fk, val, False) for fk, val in flags.items()] + [("namespace", ns, True)]
-        for ns, flags in rules["layerrules"].items()
-    ]
-    return {"windowrules": windowrules_list, "layerrules": layerrules_list}
+    return " ".join(values)
 
 
-def format_flag(key, val, indent=0, selector=False, named=False):
-    prefix = " " * indent
-    if named:
-        if selector:
-            return f"{prefix}match:{key} = {val}"
-        else:
-            return (
-                f"{prefix}{key} = {val}" if val is not None else f"{prefix}{key} = on"
-            )
+def parse_part(part: str) -> List[Item]:
+    part = part.strip()
+    if not part:
+        return []
 
-    if selector:
-        return f"{prefix}match:{key} {val}"
+    if part.startswith("$"):
+        return [Item(part, "", "variable")]
+
+    if ":" in part:
+        k, v = part.split(":", 1)
+        k = k.strip()
+        v = v.strip()
+        mapping = replacements_keys.get(k, k)
+
+        if isinstance(mapping, tuple):
+            vals = v.split()
+            return [
+                Item(mapping[0], vals[0] if len(vals) > 0 else "0", "selector"),
+                Item(mapping[1], vals[1] if len(vals) > 1 else "0", "selector"),
+            ]
+
+        return [Item(mapping, v, "selector")]
+
+    tokens = part.split()
+    raw_key = tokens[0].lower()
+    key = replacements_values.get(raw_key, raw_key)
+
+    if key == "size":
+        mode, val = parse_size(tokens[1:])
+        return [Item(mode, val, "flag")]
+
+    if key == "move":
+        return [Item(key, parse_move(tokens[1:]), "flag")]
+
+    value = " ".join(tokens[1:]) or defaults.get(key, "on")
+    return [Item(key, value, "flag")]
+
+
+def parse_line(line: str) -> Rule | None:
+    if "=" not in line:
+        return None
+
+    lhs, rhs = map(str.strip, line.split("=", 1))
+
+    if lhs.startswith("windowrule"):
+        rtype = "windowrule"
+    elif lhs.startswith("layerrule"):
+        rtype = "layerrule"
     else:
-        return f"{prefix}{key} {val}" if val is not None else f"{prefix}{key} on"
+        return None
+
+    parts = [p.strip() for p in rhs.split(",") if p.strip()]
+    items: List[Item] = []
+
+    if rtype == "layerrule":
+        first = parts[0].split()
+        key = replacements_values.get(first[0].lower(), first[0].lower())
+        val = " ".join(first[1:]) or defaults.get(key, "on")
+        items.append(Item(key, val, "flag"))
+
+        for ns in parts[1:]:
+            items.append(Item(ns, "on", "selector"))
+    else:
+        for p in parts:
+            items.extend(parse_part(p))
+
+    return Rule(rtype, items)
 
 
-def generate_anonymous(rules_dict, rule_type):
-    lines = []
-    for rule_list in rules_dict[rule_type + "s"]:
-        parts = [format_flag(k, v, selector=sel) for k, v, sel in rule_list]
-        lines.append(f"{rule_type} = " + ", ".join(parts))
-    return "\n".join(lines)
+def rule_signature(rule: Rule) -> str:
+    return "|".join(
+        sorted(f"{i.key}:{i.value}" for i in rule.items if i.type != "flag")
+    )
 
 
-def generate_named(rules_dict, rule_type):
-    blocks = []
-    for idx, rule_list in enumerate(rules_dict[rule_type + "s"], start=1):
-        name = f"{rule_type}-{idx}"
-        block = [f"{rule_type} {{", f"  name = {name}"]
-        for k, v, sel in rule_list:
-            block.append(format_flag(k, v, indent=2, selector=sel, named=True))
-        block.append("}")
-        blocks.append("\n".join(block))
-    return "\n\n".join(blocks)
+def merge_rules(rules: List[Rule]) -> List[Rule]:
+    merged: Dict[str, Rule] = {}
+
+    for r in rules:
+        sig = rule_signature(r)
+        if sig not in merged:
+            merged[sig] = Rule(r.type, [])
+
+        target = merged[sig]
+        for item in r.items:
+            if item.type != "flag":
+                if not any(
+                    i.key == item.key and i.value == item.value for i in target.items
+                ):
+                    target.items.append(item)
+            else:
+                for i in target.items:
+                    if i.type == "flag" and i.key == item.key:
+                        i.value = item.value
+                        break
+                else:
+                    target.items.append(item)
+
+    return list(merged.values())
 
 
-def rewrite_file(filename, rules, use_named=False):
+def generate_rules(text: str) -> str:
+    lines = text.splitlines()
+    parsed = [(i, parse_line(l)) for i, l in enumerate(lines) if parse_line(l)]
+    merged = merge_rules([r for _, r in parsed])
+
+    used = set()
+    out = list(lines)
+    wc = lc = 1
+
+    order = {"flag": 0, "selector": 1, "variable": 2}
+
+    for idx, rule in parsed:
+        sig = rule_signature(rule)
+        if sig in used:
+            out[idx] = ""
+            continue
+        used.add(sig)
+
+        r = next(m for m in merged if rule_signature(m) == sig)
+        r.items.sort(key=lambda i: order[i.type])
+
+        if NAMED_OUTPUT:
+            name = f"{r.type}-{wc if r.type == 'windowrule' else lc}"
+            if r.type == "windowrule":
+                wc += 1
+            else:
+                lc += 1
+
+            block = [f"{r.type} {{", f"  name = {name}"]
+            for i in r.items:
+                if i.type == "variable":
+                    block.append(f"  match:{i.key}")
+                elif i.type == "selector":
+                    if r.type == "layerrule":
+                        block.append(f"  match:namespace = {i.key}")
+                    else:
+                        block.append(f"  match:{i.key} = {i.value}")
+                else:
+                    block.append(f"  {i.key} = {i.value}")
+            block.append("}")
+            out[idx] = "\n".join(block)
+        else:
+            parts = []
+            for i in r.items:
+                if i.type == "variable":
+                    parts.append(i.key)
+                elif i.type == "selector":
+                    parts.append(
+                        f"match:namespace {i.key}"
+                        if r.type == "layerrule"
+                        else f"match:{i.key} {i.value}"
+                    )
+                else:
+                    parts.append(f"{i.key} {i.value}")
+            out[idx] = f"{r.type} = {', '.join(parts)}"
+
+    return "\n".join(l for l in out if l.strip())
+
+
+def rewrite_file(filename: str):
     backup = filename + ".bak"
     shutil.copy2(filename, backup)
 
     with open(filename, "r") as f:
-        lines = f.readlines()
+        content = f.read()
 
-    cleaned = []
-    for line in lines:
-        stripped = line.strip()
-        if stripped.startswith(
-            ("windowrule", "windowrulev2", "layerrule")
-        ) or stripped.startswith("# --- Auto-generated"):
-            continue
-        cleaned.append(line)
-
-    cleaned.append("\n# --- Auto-generated window rules ---\n")
-    window_text = (generate_named if use_named else generate_anonymous)(
-        rules, "windowrule"
-    )
-    cleaned.append(window_text)
-
-    cleaned.append("\n\n# --- Auto-generated layer rules ---\n")
-    layer_text = (generate_named if use_named else generate_anonymous)(
-        rules, "layerrule"
-    )
-    cleaned.append(layer_text)
-
-    cleaned.append("\n")
+    new_content = generate_rules(content)
 
     with open(filename, "w") as f:
-        f.writelines(cleaned)
+        f.write(new_content)
 
-    print(f"File '{filename}' rewritten with merged rules. Backup saved as '{backup}'.")
+    print(f"Rewritten '{filename}', backup saved as '{backup}'")
+
+
+def restore_file(filename: str):
+    backup = filename + ".bak"
+    try:
+        shutil.copy2(backup, filename)
+        print(f"Restored '{filename}' from '{backup}'")
+    except FileNotFoundError:
+        print(f"No backup found at '{backup}'")
 
 
 if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: script.py <file> [--anon] [--restore]")
+        sys.exit(1)
+
     filename = sys.argv[1]
-    use_named = "--named" in sys.argv
-    restore = "--restore" in sys.argv
 
-    if restore:
-        backup = filename + ".bak"
-        try:
-            shutil.copy2(backup, filename)
-            print(f"File '{filename}' restored from backup '{backup}'.")
-        except FileNotFoundError:
-            print(f"No backup found at '{backup}' to restore.")
-        sys.exit(0)
+    if "--named" in sys.argv:
+        NAMED_OUTPUT = True
 
-    rules = parse_rules(filename)
-    rewrite_file(filename, rules, use_named)
+    if "--restore" in sys.argv:
+        restore_file(filename)
+    else:
+        rewrite_file(filename)
