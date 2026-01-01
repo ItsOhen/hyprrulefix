@@ -1,3 +1,5 @@
+let NAMED_OUTPUT = true;
+
 type ItemType = "selector" | "flag" | "variable";
 type RuleType = "windowrule" | "layerrule";
 
@@ -71,121 +73,100 @@ const defaults: Record<string, string> = {
 };
 
 function parseSize(tokens: string[]): { mode: string; values: string[] } {
-  let mode = "size"; // default
+  let mode = "size";
   const values = tokens.map((v, i) => {
     let token = v.trim();
-
     if (token.startsWith(">")) {
-      mode = "size_min";
+      mode = "min_size";
       token = token.slice(1);
     } else if (token.startsWith("<")) {
-      mode = "size_max";
+      mode = "max_size";
       token = token.slice(1);
     }
-
     if (token.endsWith("%")) {
       const factor = parseFloat(token.slice(0, -1)) / 100;
       return i === 0 ? `(monitor_w*${factor})` : `(monitor_h*${factor})`;
     }
-
     return token;
   });
-
   return { mode, values };
 }
 
 function parseMove(tokens: string[]): { values: string[] } {
   let cursor = false;
-
+  let onscreen = false;
   const args: string[] = [];
-
   for (const t of tokens) {
-    if (t === "cursor") {
-      cursor = true;
-      continue;
-    }
-    if (t === "onscreen") continue;
-    args.push(t);
+    if (t === "cursor") cursor = true;
+    else if (t === "onscreen") onscreen = true;
+    else args.push(t);
   }
 
-  const values = args.map((raw, index) => {
-    const isX = index === 0;
-    const monitor = isX ? "monitor_w" : "monitor_h";
-    const client = isX ? "window_w" : "window_h";
-    const cursorBase = isX ? "cursor_x" : "cursor_y";
+  return {
+    values: args.map((raw, idx) => {
+      const isX = idx === 0;
+      const monitor = isX ? "monitor_w" : "monitor_h";
+      const client = isX ? "window_w" : "window_h";
+      const cursorBase = isX ? "cursor_x" : "cursor_y";
 
-    const parts = raw.trim().split("-");
+      const parts = raw.trim().split("-");
+      const transformed = parts.map((part) => {
+        part = part.trim();
+        if (part === "w") return client;
+        if (part.endsWith("%")) {
+          const factor = parseFloat(part.slice(0, -1)) / 100;
+          return `(${monitor}*${factor})`;
+        }
+        return part;
+      });
 
-    const transformed = parts.map((part) => {
-      part = part.trim();
-
-      if (part === "w") return client;
-
-      if (part.endsWith("%")) {
-        const factor = parseFloat(part.slice(0, -1)) / 100;
-        return `(${monitor}*${factor})`;
+      let expr = transformed.join("-");
+      if (onscreen) {
+        const sep = NAMED_OUTPUT ? "," : `\\,`;
+        expr = `min(max(${expr}${sep}0)${sep}${monitor}-${client})`;
       }
-
-      return part;
-    });
-
-    const expr = `(${transformed.join("-")})`;
-
-    return cursor ? `(${cursorBase}+${expr})` : expr;
-  });
-
-  return { values };
+      if (cursor) expr = `${cursorBase}+(${expr})`;
+      return `(${expr})`;
+    }),
+  };
 }
 
 function parsePart(part: string): Item | Item[] {
   part = part.trim();
   if (!part) return { key: "", value: "", type: "flag", error: true };
-
-  if (part.startsWith("$")) {
+  if (part.startsWith("$"))
     return { key: part, value: "", type: "variable", error: false };
-  }
 
-  let colonIndex = part.indexOf(":");
+  const colonIndex = part.indexOf(":");
   const firstSpace = part.indexOf(" ");
-  if (firstSpace !== -1 && colonIndex !== -1 && firstSpace < colonIndex)
-    colonIndex = -1;
-
-  if (colonIndex !== -1) {
+  if (colonIndex !== -1 && (firstSpace === -1 || firstSpace > colonIndex)) {
     const rawKey = part.slice(0, colonIndex).trim();
     const rawVal = part.slice(colonIndex + 1).trim();
     const mapping = replacementsKeys[rawKey] ?? rawKey;
-
     if (Array.isArray(mapping)) {
       const vals = rawVal.split(/\s+/);
-      const out: Item[] = [];
-      for (let i = 0; i < mapping.length; i++) {
-        out.push({
-          key: mapping[i],
-          value: vals[i] ?? "0",
-          type: "selector",
-          error: false,
-        });
-      }
-      return out;
+      return mapping.map((k, i) => ({
+        key: k,
+        value: vals[i] ?? "0",
+        type: "selector",
+        error: false,
+      }));
     }
-
     return { key: mapping, value: rawVal, type: "selector", error: false };
   }
 
   const tokens = part.split(/\s+/);
-  const rawKey = tokens[0];
-  const key = replacementsValues[rawKey.toLowerCase()] ?? rawKey.toLowerCase();
-  let value;
+  const rawKey = tokens[0].toLowerCase();
+  const key = replacementsValues[rawKey] ?? rawKey;
   if (key === "size") {
     const { mode, values } = parseSize(tokens.slice(1));
     return { key: mode, value: values.join(" "), type: "flag", error: false };
-  } else if (key === "move") {
+  }
+  if (key === "move") {
     const { values } = parseMove(tokens.slice(1));
     return { key, value: values.join(" "), type: "flag", error: false };
-  } else {
-    value = tokens.slice(1).join(" ") || defaults[key] || "on";
   }
-
+  const value = tokens.slice(1).join(" ") || defaults[key] || "on";
   return { key, value, type: "flag", error: false };
 }
 
@@ -269,6 +250,7 @@ function mergeRules(rules: Rule[]): Rule[] {
 }
 
 export function generateRules(input: string, named = true): string {
+  NAMED_OUTPUT = named;
   const lines = input.split("\n");
   const output: Array<string | null> = [...lines];
 
