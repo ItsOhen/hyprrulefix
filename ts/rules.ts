@@ -256,12 +256,40 @@ export function generateRules(input: string, named = true): string {
 
   const rules: { rule: Rule; lineIndex: number }[] = [];
 
-  lines.forEach((line, idx) => {
+  const isBlockStart = /^(windowrule|layerrule)\s*\{/;
+  const isMatchRule = /^(windowrule|layerrule)\b.*\bmatch:/;
+  let idx = 0;
+
+  while (idx < lines.length) {
+    const line = lines[idx];
     const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) return;
+
+    if (!trimmed || trimmed.startsWith("#")) {
+      idx++;
+      continue;
+    }
+
+    if (isBlockStart.test(trimmed)) {
+      idx++;
+      while (idx < lines.length && !/^\s*}/.test(lines[idx])) {
+        idx++;
+      }
+      idx++;
+      continue;
+    }
+
+    if (isMatchRule.test(trimmed)) {
+      idx++;
+      continue;
+    }
+
     const rule = parseLine(line);
-    if (rule) rules.push({ rule, lineIndex: idx });
-  });
+    if (rule) {
+      rules.push({ rule, lineIndex: idx });
+    }
+
+    idx++;
+  }
 
   const mergedRules = mergeRules(rules.map((r) => r.rule));
 
