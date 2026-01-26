@@ -7,14 +7,32 @@ const saveBtn = document.getElementById("saveFile")!;
 const toggle = document.getElementById("ruleTypeSwitch") as HTMLInputElement;
 const overlay = document.getElementById("dropOverlay")!;
 const container = outputBox.parentElement!;
+const statusIndicator = document.getElementById("statusIndicator")!;
 
 let savedSource = "";
+
+function showConversionFeedback() {
+  statusIndicator.classList.add("visible");
+  outputBox.classList.add("converted");
+  setTimeout(() => {
+    statusIndicator.classList.remove("visible");
+    outputBox.classList.remove("converted");
+  }, 1500);
+}
 
 function updateOutput(source: string) {
   savedSource = source;
   outputBox.value = generateRules(source, !toggle.checked);
   outputBox.disabled = false;
   overlay.classList.add("hidden");
+  showConversionFeedback();
+}
+
+function loadFromClipboard(e: ClipboardEvent) {
+  const source = e.clipboardData?.getData("text") || "";
+  if (source.trim() === "") return;
+  localStorage.setItem("ruleSource", source);
+  updateOutput(source);
 }
 
 function loadFile(file: File) {
@@ -27,10 +45,17 @@ function loadFile(file: File) {
   reader.readAsText(file);
 }
 
+window.addEventListener("paste", (e) => {
+  e.preventDefault();
+  loadFromClipboard(e);
+})
+
 toggle.addEventListener("change", () => {
   localStorage.setItem("ruleType", toggle.checked ? "anon" : "named");
-  if (savedSource)
+  if (savedSource) {
     outputBox.value = generateRules(savedSource, !toggle.checked);
+    showConversionFeedback();
+  }
 });
 
 loadBtn.addEventListener("click", () => fileInput.click());
