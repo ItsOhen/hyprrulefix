@@ -11,33 +11,34 @@
     <div class="info">Convert hyprland v1/v2 window and layer rules to v3.</div>
 
     <div class="pane">
-      <div class="output-header">
-        <div class="left">
-          <button id="loadFile" class="nord-btn">Import</button>
-          <input type="file" id="fileInput" style="display: none" />
-        </div>
+        <div class="output-header">
+          <div class="left">
+            <button id="loadFile" class="nord-btn">Import File</button>
+            <input type="file" id="fileInput" style="display: none" />
+          </div>
 
-        <div class="center">
-          <label class="slide-switch">
-            <input type="checkbox" id="ruleTypeSwitch" />
-            <div class="switch-track">
-              <div class="switch-knob">
-                <span class="knob-text"></span>
+          <div class="center">
+            <label class="slide-switch">
+              <input type="checkbox" id="ruleTypeSwitch" />
+              <div class="switch-track">
+                <div class="switch-knob">
+                  <span class="knob-text"></span>
+                </div>
+                <span class="left-label">Named</span>
+                <span class="right-label">Anonymous</span>
               </div>
-              <span class="left-label">Named</span>
-              <span class="right-label">Anonymous</span>
-            </div>
-          </label>
-        </div>
+            </label>
+          </div>
 
-        <div class="right">
-          <button id="saveFile" class="nord-btn">Save</button>
+          <div class="right">
+            <span id="statusIndicator" class="status-indicator">Converted</span>
+            <button id="saveFile" class="nord-btn">Save</button>
+          </div>
         </div>
-      </div>
 
       <div class="outputContainer">
         <textarea id="outputBox" readonly wrap="off"></textarea>
-        <div id="dropOverlay">Drag & drop config here.</div>
+        <div id="dropOverlay">Paste, or Drag & drop config here.</div>
       </div>
     </div>
 
